@@ -1,0 +1,62 @@
+{
+  "base_verifier": "c:swords",
+  "base_verifier_type": "tag",
+  "mapped_verifiers": [
+    {
+      "verifier": "c:halberds",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:polearms",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:spears",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:lances",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:glaives",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:katanas",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:sabers",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:rapiers",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:daggers",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:longswords",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:greatswords",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:warhammers",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:battleaxes",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:maces",
+      "type": "tag"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "base_verifier": "c:bows",
+  "base_verifier_type": "tag",
+  "mapped_verifiers": [
+    {
+      "verifier": "c:longbows",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:crossbows",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:javelins",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:throwing_knives",
+      "type": "tag"
+    },
+    {
+      "verifier": "c:boomerangs",
+      "type": "tag"
+    }
+  ]
+}

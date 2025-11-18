@@ -68,6 +68,14 @@ public class Tierify implements ModInitializer {
      * data/tiered/reforge_item
      */
     public static final ReforgeDataLoader REFORGE_DATA_LOADER = new ReforgeDataLoader();
+    
+    /**
+     * Verifier Mapping Loader instance which handles loading verifier mapping .json files from "data/modid/verifier_mappings".
+     * <p>
+     * This allows datapacks to extend existing verifiers (like "c:swords") to also match additional tags or item IDs
+     * without modifying the base attribute files.
+     */
+    public static final elocindev.tierify.data.VerifierMappingLoader VERIFIER_MAPPING_LOADER = new elocindev.tierify.data.VerifierMappingLoader();
 
     public static ScreenHandlerType<ReforgeScreenHandler> REFORGE_SCREEN_HANDLER_TYPE;
 
@@ -107,6 +115,7 @@ public class Tierify implements ModInitializer {
         SoundRegistry.registerSounds();
         ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(Tierify.ATTRIBUTE_DATA_LOADER);
         ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(Tierify.REFORGE_DATA_LOADER);
+        ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(Tierify.VERIFIER_MAPPING_LOADER);
 
         REFORGE_SCREEN_HANDLER_TYPE = Registry.register(Registries.SCREEN_HANDLER, "tiered:reforge",
                 new ScreenHandlerType<>((syncId, inventory) -> new ReforgeScreenHandler(syncId, inventory, ScreenHandlerContext.EMPTY), FeatureFlags.VANILLA_FEATURES));

@@ -1,12 +1,15 @@
 package draylar.tiered.api;
 
 import elocindev.tierify.Tierify;
+import elocindev.tierify.data.VerifierMapping;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
+
+import java.util.List;
 
 public class ItemVerifier {
 
@@ -34,24 +37,71 @@ public class ItemVerifier {
      * Returns whether the given {@link String} is valid for this ItemVerifier, which may check direct against either a {@link Identifier} or {@link Tag<Item>}.
      * <p>
      * The given {@link String} should be the ID of an {@link Item} in {@link Registry#ITEM}.
+     * <p>
+     * This method now also checks verifier mappings, allowing datapacks to extend verifiers
+     * without modifying the original attribute files.
      *
      * @param itemID item registry ID to check against this verifier
      * @return whether the check succeeded
      */
     public boolean isValid(String itemID) {
+        // Check direct ID match
         if (id != null) {
-            return itemID.equals(id);
-        } else if (tag != null) {
+            if (itemID.equals(id)) {
+                return true;
+            }
+            // Check if this ID has mapped verifiers
+            return checkMappedVerifiers(id, itemID);
+        } 
+        // Check tag match
+        else if (tag != null) {
             TagKey<Item> itemTag = TagKey.of(RegistryKeys.ITEM, new Identifier(tag));
-            // TagKey<Item> itemTag = ItemTags.getTagGroup().getTag(new Identifier(tag));
-
+            
             if (itemTag != null) {
-                return new ItemStack(Registries.ITEM.get(new Identifier(itemID))).isIn(itemTag);// itemTag.contains(Registry.ITEM.get(new Identifier(itemID)));
+                // Check direct tag membership
+                if (new ItemStack(Registries.ITEM.get(new Identifier(itemID))).isIn(itemTag)) {
+                    return true;
+                }
+                // Check if this tag has mapped verifiers
+                return checkMappedVerifiers(tag, itemID);
             } else {
                 Tierify.LOGGER.error(tag + " was specified as an item verifier tag, but it does not exist!");
             }
         }
 
+        return false;
+    }
+    
+    /**
+     * Checks if the item matches any mapped verifiers for the given base verifier.
+     * 
+     * @param baseVerifier The base verifier (tag or id) to look up mappings for
+     * @param itemID The item ID to check
+     * @return true if the item matches any mapped verifier
+     */
+    private boolean checkMappedVerifiers(String baseVerifier, String itemID) {
+        if (Tierify.VERIFIER_MAPPING_LOADER == null) {
+            return false;
+        }
+        
+        List<VerifierMapping.MappedVerifier> mappedVerifiers = 
+            Tierify.VERIFIER_MAPPING_LOADER.getMappedVerifiers(baseVerifier);
+        
+        for (VerifierMapping.MappedVerifier mapped : mappedVerifiers) {
+            if ("id".equals(mapped.getType())) {
+                // Check direct ID match
+                if (itemID.equals(mapped.getVerifier())) {
+                    return true;
+                }
+            } else if ("tag".equals(mapped.getType())) {
+                // Check tag membership
+                TagKey<Item> mappedTag = TagKey.of(RegistryKeys.ITEM, new Identifier(mapped.getVerifier()));
+                if (new ItemStack(Registries.ITEM.get(new Identifier(itemID))).isIn(mappedTag)) {
+                    return true;
+                }
+            }
+        }
+        
         return false;
     }
 

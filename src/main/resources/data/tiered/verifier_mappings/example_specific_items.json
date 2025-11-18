@@ -1,0 +1,14 @@
+{
+  "base_verifier": "c:swords",
+  "base_verifier_type": "tag",
+  "mapped_verifiers": [
+    {
+      "verifier": "example_mod:example_item",
+      "type": "id"
+    },
+    {
+      "verifier": "examplemod:exampleitem",
+      "type": "id"
+    }
+  ]
+}

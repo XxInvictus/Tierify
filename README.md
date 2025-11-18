@@ -30,7 +30,18 @@ Tierify is a mod built for the [Fabric Loader](https://fabricmc.net/). It requir
 
 ### Customization
 
-Tierify is entirely data-driven, which means you can add, modify, and remove modifiers as you see fit. The base path for modifiers is `data/modid/item_attributes`, and tiered modifiers are stored under the modid of tiered. Here's an example modifier called "Hasteful," which grants additional dig speed when any of the valid tools are held:
+Tierify is entirely data-driven, which means you can add, modify, and remove modifiers as you see fit. The base path for modifiers is `data/modid/item_attributes`, and tiered modifiers are stored under the modid of tiered.
+
+#### **NEW: Verifier Mappings for Modded Item Support**
+
+Tierify now supports **verifier mappings** which allow you to extend existing attribute verifiers to work with modded items **without modifying any attribute files**. This is the recommended way to add support for modded weapons, tools, and armor.
+
+For example, to make all Spartan Weaponry halberds receive the same tiers as swords, create:  
+`data/tiered/verifier_mappings/spartanweaponry.json`
+
+See **[VERIFIER_MAPPINGS.md](VERIFIER_MAPPINGS.md)** for full documentation.
+
+Here's an example modifier called "Hasteful," which grants additional dig speed when any of the valid tools are held:
 ```json
 {
   "id": "tiered:hasteful",
