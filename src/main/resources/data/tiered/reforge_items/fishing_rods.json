@@ -3,6 +3,7 @@
     "minecraft:fishing_rod"
   ],
   "base": [
+    "#c:strings",
     "minecraft:string"
   ]
 }

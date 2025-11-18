@@ -20,11 +20,10 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldEvents;
 
-import java.util.List;
-
 import draylar.tiered.api.ModifierUtils;
 import draylar.tiered.api.TieredItemTags;
 import elocindev.tierify.Tierify;
+import elocindev.tierify.data.ReforgeDataLoader;
 import elocindev.tierify.network.TieredServerPacket;
 
 public class ReforgeScreenHandler extends ScreenHandler {
@@ -84,10 +83,16 @@ public class ReforgeScreenHandler extends ScreenHandler {
             Item item = this.getSlot(1).getStack().getItem();
             if (ModifierUtils.getRandomAttributeIDFor(null, item, false) != null && !this.getSlot(1).getStack().isDamaged()) {
 
-                List<Item> items = Tierify.REFORGE_DATA_LOADER.getReforgeBaseItems(item);
+                ReforgeDataLoader.ReforgeBaseData baseData = Tierify.REFORGE_DATA_LOADER.getReforgeBaseData(item);
                 ItemStack baseItem = this.getSlot(0).getStack();
-                if (!items.isEmpty()) {
-                    this.reforgeReady = items.stream().anyMatch(it -> it == baseItem.getItem());
+                
+                // Check if custom reforge base data is defined
+                if (!baseData.getDirectItems().isEmpty() || !baseData.getTags().isEmpty()) {
+                    // Check direct item matches
+                    boolean matchesDirectItem = baseData.getDirectItems().stream().anyMatch(it -> it == baseItem.getItem());
+                    // Check tag matches
+                    boolean matchesTag = baseData.getTags().stream().anyMatch(tag -> baseItem.isIn(tag));
+                    this.reforgeReady = matchesDirectItem || matchesTag;
                 } else if (item instanceof ToolItem toolItem) {
                     this.reforgeReady = toolItem.getMaterial().getRepairIngredient().test(baseItem);
                 } else if (item instanceof ArmorItem armorItem && armorItem.getMaterial().getRepairIngredient() != null) {
@@ -143,6 +148,18 @@ public class ReforgeScreenHandler extends ScreenHandler {
                 }
                 if (this.getSlot(1).hasStack()) {
                     Item item = this.getSlot(1).getStack().getItem();
+                    
+                    // Check custom reforge base data (includes both direct items and tags)
+                    ReforgeDataLoader.ReforgeBaseData baseData = Tierify.REFORGE_DATA_LOADER.getReforgeBaseData(item);
+                    boolean matchesDirectItem = baseData.getDirectItems().stream().anyMatch(it -> it == itemStack2.copy().getItem());
+                    final ItemStack checkStack = itemStack2.copy();
+                    boolean matchesTag = baseData.getTags().stream().anyMatch(tag -> checkStack.isIn(tag));
+                    
+                    if ((matchesDirectItem || matchesTag) && !this.insertItem(itemStack2, 0, 1, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                    
+                    // Fallback to tool/armor material repair ingredients
                     if (item instanceof ToolItem toolItem && toolItem.getMaterial().getRepairIngredient().test(itemStack) && !this.insertItem(itemStack2, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
@@ -150,11 +167,9 @@ public class ReforgeScreenHandler extends ScreenHandler {
                             && !this.insertItem(itemStack2, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
+                    
+                    // Fallback to generic reforge base item tag
                     if (itemStack.isIn(TieredItemTags.REFORGE_BASE_ITEM) && !this.insertItem(itemStack2, 0, 1, false)) {
-                        return ItemStack.EMPTY;
-                    }
-                    List<Item> items = Tierify.REFORGE_DATA_LOADER.getReforgeBaseItems(item);
-                    if (items.stream().anyMatch(it -> it == itemStack2.copy().getItem()) && !this.insertItem(itemStack2, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
                 }

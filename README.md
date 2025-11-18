@@ -146,6 +146,8 @@ Example:
 Reforging items to get other tiers can be done at the anvil. There is a slot which is called "base" on the left and a slot called "addition" on the right.
 The addition slot can only contain items which are stated in each tier item tag (`tiered:reforge_tier_1`, `tiered:reforge_tier_2`, `tiered:reforge_tier_3`). The base slot can contain the reforging item material item if existent, otherwise it can only contain `tiered:reforge_base_item` tag items. The base slot item can get changed via datapack, an example can be found below and has to get put in the `tiered:reforge_items` folder.
 
+**NEW: Tag Support** - The `base` field now supports tags! Prefix tag identifiers with `#` to accept any items in that tag. See **[REFORGE_TAG_SUPPORT.md](REFORGE_TAG_SUPPORT.md)** for full documentation.
+
 ```json
 {
   "items": [
@@ -153,6 +155,19 @@ The addition slot can only contain items which are stated in each tier item tag 
   ],
   "base": [
     "minecraft:string"
+  ]
+}
+```
+
+Example using tags:
+```json
+{
+  "items": [
+    "minecraft:iron_sword",
+    "minecraft:iron_axe"
+  ],
+  "base": [
+    "#c:ingots/iron"
   ]
 }
 ```

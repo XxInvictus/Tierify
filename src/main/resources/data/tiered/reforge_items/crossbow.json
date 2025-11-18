@@ -3,6 +3,7 @@
     "minecraft:crossbow"
   ],
   "base": [
+    "#c:ingots/iron",
     "minecraft:iron_ingot"
   ]
 }

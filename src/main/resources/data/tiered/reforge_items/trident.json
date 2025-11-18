@@ -3,6 +3,7 @@
     "minecraft:trident"
   ],
   "base": [
+    "#c:gems/prismarine",
     "minecraft:prismarine_crystals"
   ]
 }
