@@ -2,10 +2,10 @@ package draylar.tiered.api;
 
 import elocindev.tierify.Tierify;
 import elocindev.tierify.data.VerifierMapping;
+import elocindev.tierify.util.TagParsingHelper;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
 
@@ -55,7 +55,7 @@ public class ItemVerifier {
         } 
         // Check tag match
         else if (tag != null) {
-            TagKey<Item> itemTag = TagKey.of(RegistryKeys.ITEM, new Identifier(tag));
+            TagKey<Item> itemTag = TagParsingHelper.createItemTagFromId(tag);
             
             if (itemTag != null) {
                 // Check direct tag membership
@@ -95,7 +95,7 @@ public class ItemVerifier {
                 }
             } else if ("tag".equals(mapped.getType())) {
                 // Check tag membership
-                TagKey<Item> mappedTag = TagKey.of(RegistryKeys.ITEM, new Identifier(mapped.getVerifier()));
+                TagKey<Item> mappedTag = TagParsingHelper.createItemTagFromId(mapped.getVerifier());
                 if (new ItemStack(Registries.ITEM.get(new Identifier(itemID))).isIn(mappedTag)) {
                     return true;
                 }
@@ -110,7 +110,7 @@ public class ItemVerifier {
     }
 
     public TagKey<Item> getTagKey() {
-        return TagKey.of(RegistryKeys.ITEM, new Identifier(tag));
+        return TagParsingHelper.createItemTagFromId(tag);
     }
 
     @Override

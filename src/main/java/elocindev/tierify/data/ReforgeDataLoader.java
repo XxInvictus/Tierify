@@ -13,10 +13,10 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import elocindev.tierify.util.TagParsingHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
@@ -63,40 +63,64 @@ public class ReforgeDataLoader implements SimpleSynchronousResourceReloadListene
                 InputStream stream = resourceRef.getInputStream();
                 JsonObject data = JsonParser.parseReader(new InputStreamReader(stream)).getAsJsonObject();
 
-                for (int u = 0; u < data.getAsJsonArray("items").size(); u++) {
-                    List<Item> baseItems = new ArrayList<Item>();
-                    List<TagKey<Item>> baseTags = new ArrayList<TagKey<Item>>();
+                // First, parse the base materials (items or tags)
+                List<Item> baseItems = new ArrayList<Item>();
+                List<TagKey<Item>> baseTags = new ArrayList<TagKey<Item>>();
+                
+                for (int i = 0; i < data.getAsJsonArray("base").size(); i++) {
+                    String baseEntry = data.getAsJsonArray("base").get(i).getAsString();
                     
-                    for (int i = 0; i < data.getAsJsonArray("base").size(); i++) {
-                        String baseEntry = data.getAsJsonArray("base").get(i).getAsString();
-                        
-                        // Check if this is a tag (starts with #)
-                        if (baseEntry.startsWith("#")) {
-                            String tagId = baseEntry.substring(1); // Remove the # prefix
-                            TagKey<Item> tag = TagKey.of(RegistryKeys.ITEM, new Identifier(tagId));
-                            baseTags.add(tag);
-                            LOGGER.info("Loaded tag-based reforge base: {}", tagId);
-                        } else {
-                            // Handle as direct item ID
-                            Item item = Registries.ITEM.get(new Identifier(baseEntry));
-                            if (item.toString().equals("air")) {
-                                LOGGER.info("Resource {} was not loaded cause {} is not a valid item identifier", id.toString(), baseEntry);
-                                continue;
-                            }
-                            baseItems.add(item);
+                    // Check if this is a tag (starts with #)
+                    if (TagParsingHelper.isTagReference(baseEntry)) {
+                        String tagId = TagParsingHelper.extractTagId(baseEntry);
+                        TagKey<Item> tag = TagParsingHelper.createItemTagFromId(tagId);
+                        baseTags.add(tag);
+                        LOGGER.info("Loaded tag-based reforge base: {}", tagId);
+                    } else {
+                        // Handle as direct item ID
+                        Item item = TagParsingHelper.getValidItem(baseEntry);
+                        if (item == null) {
+                            LOGGER.info("Resource {} was not loaded cause {} is not a valid item identifier", id.toString(), baseEntry);
+                            continue;
                         }
+                        baseItems.add(item);
                     }
+                }
+                
+                // Now process the items (which can also be tags)
+                List<Identifier> targetItems = new ArrayList<>();
+                
+                for (int u = 0; u < data.getAsJsonArray("items").size(); u++) {
+                    String itemEntry = data.getAsJsonArray("items").get(u).getAsString();
                     
-                    if (Registries.ITEM.get(new Identifier(data.getAsJsonArray("items").get(u).getAsString())).toString().equals("air")) {
-                        LOGGER.info("Resource {} was not loaded cause {} is not a valid item identifier", id.toString(), data.getAsJsonArray("items").get(u).getAsString());
-                        continue;
+                    // Check if this is a tag (starts with #)
+                    if (TagParsingHelper.isTagReference(itemEntry)) {
+                        String tagId = TagParsingHelper.extractTagId(itemEntry);
+                        TagKey<Item> itemTag = TagParsingHelper.createItemTagFromId(tagId);
+                        
+                        // Expand the tag to all items it contains
+                        List<Identifier> expandedIds = TagParsingHelper.expandItemTagToIds(itemTag);
+                        targetItems.addAll(expandedIds);
+                        LOGGER.info("Expanded tag {} to {} items for reforge", tagId, expandedIds.size());
+                    } else {
+                        // Handle as direct item ID
+                        Item item = TagParsingHelper.getValidItem(itemEntry);
+                        if (item == null) {
+                            LOGGER.info("Resource {} was not loaded cause {} is not a valid item identifier", id.toString(), itemEntry);
+                            continue;
+                        }
+                        targetItems.add(new Identifier(itemEntry));
                     }
-                    
-                    Identifier itemId = new Identifier(data.getAsJsonArray("items").get(u).getAsString());
+                }
+                
+                // Register all target items with the same base data
+                ReforgeBaseData baseData = new ReforgeBaseData(baseItems, baseTags);
+                for (Identifier itemId : targetItems) {
                     reforgeIdentifiers.add(itemId);
                     reforgeBaseMap.put(itemId, baseItems); // Keep for backward compatibility
-                    reforgeBaseDataMap.put(itemId, new ReforgeBaseData(baseItems, baseTags));
+                    reforgeBaseDataMap.put(itemId, baseData);
                 }
+                
             } catch (Exception e) {
                 LOGGER.error("Error occurred while loading resource {}. {}", id.toString(), e.toString());
             }

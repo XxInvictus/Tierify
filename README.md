@@ -28,6 +28,34 @@ Tierify expands upon Tiered by changing various things, but keeps its mod id and
 ### Installation
 Tierify is a mod built for the [Fabric Loader](https://fabricmc.net/). It requires [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api) & [Necronomicon API](https://www.curseforge.com/minecraft/mc-mods/necronomicon) (and [Synitra Connector](https://www.curseforge.com/minecraft/mc-mods/sinytra-connector) if on Forge/NeoForge) to be installed separately; all other dependencies are included inside the mod.
 
+### Quick Start: Adding Modded Item Support
+
+**Problem**: Modded weapons/tools/armor not receiving tiers?
+
+**Solution 1 - Verifier Mappings** (Recommended for adding tiers to items):
+Create `data/tiered/verifier_mappings/my_mod_support.json`:
+```json
+{
+  "base_verifier": "c:swords",
+  "mapped_verifiers": [
+    {"verifier": "c:halberds", "type": "tag"},
+    {"verifier": "c:spears", "type": "tag"}
+  ]
+}
+```
+Now halberds and spears will receive the same tiers as swords! See [VERIFIER_MAPPINGS.md](VERIFIER_MAPPINGS.md) for details.
+
+**Solution 2 - Reforge Tag Support** (Recommended for reforging recipes):
+Create `data/tiered/reforge_items/all_modded_weapons.json`:
+```json
+{
+  "items": ["#c:swords", "#c:axes"],
+  "base": ["#c:ingots/iron"]
+}
+```
+All swords and axes (vanilla + modded) can now be reforged with iron ingots! See [REFORGE_TAG_SUPPORT.md](REFORGE_TAG_SUPPORT.md) for details.
+*This would not typically be recommended for a multi-material tag like `"#c:swords"` but can be useful for modded support such as Spartan Weaponry where the tag `"#spartanweaponry:aluminum_weapons"` would contain items which all utilise aluminum as a base material.*
+
 ### Customization
 
 Tierify is entirely data-driven, which means you can add, modify, and remove modifiers as you see fit. The base path for modifiers is `data/modid/item_attributes`, and tiered modifiers are stored under the modid of tiered.
@@ -41,7 +69,9 @@ For example, to make all Spartan Weaponry halberds receive the same tiers as swo
 
 See **[VERIFIER_MAPPINGS.md](VERIFIER_MAPPINGS.md)** for full documentation.
 
-Here's an example modifier called "Hasteful," which grants additional dig speed when any of the valid tools are held:
+### Example: Hasteful modifier
+
+A simple modifier example that grants +10% dig speed when a valid tool (pickaxe, shovel, or axe) is held in the main hand. Save this JSON as a modifier file (for example: `data/your_datapack/item_attributes/tiered/hasteful.json`). The modifier uses verifiers to target tool tags, a weight of 10, and applies a MULTIPLY_BASE dig speed modifier when equipped in the MAINHAND.
 ```json
 {
   "id": "tiered:hasteful",
@@ -146,8 +176,9 @@ Example:
 Reforging items to get other tiers can be done at the anvil. There is a slot which is called "base" on the left and a slot called "addition" on the right.
 The addition slot can only contain items which are stated in each tier item tag (`tiered:reforge_tier_1`, `tiered:reforge_tier_2`, `tiered:reforge_tier_3`). The base slot can contain the reforging item material item if existent, otherwise it can only contain `tiered:reforge_base_item` tag items. The base slot item can get changed via datapack, an example can be found below and has to get put in the `tiered:reforge_items` folder.
 
-**NEW: Tag Support** - The `base` field now supports tags! Prefix tag identifiers with `#` to accept any items in that tag. See **[REFORGE_TAG_SUPPORT.md](REFORGE_TAG_SUPPORT.md)** for full documentation.
+**NEW: Tag Support** - Both the `items` and `base` fields now support tags! Prefix tag identifiers with `#` to use tags instead of listing individual items. This dramatically reduces file duplication and automatically supports modded items. See **[REFORGE_TAG_SUPPORT.md](REFORGE_TAG_SUPPORT.md)** for full documentation.
 
+Basic example (direct items):
 ```json
 {
   "items": [
@@ -159,7 +190,7 @@ The addition slot can only contain items which are stated in each tier item tag 
 }
 ```
 
-Example using tags:
+Example using tags in `base` field:
 ```json
 {
   "items": [
@@ -171,6 +202,63 @@ Example using tags:
   ]
 }
 ```
+
+Example using tags in both `items` and `base` fields (recommended for broad coverage):
+```json
+{
+  "items": [
+    "#c:swords"
+  ],
+  "base": [
+    "#c:ingots/iron"
+  ]
+}
+```
+
+This single entry creates reforge recipes for **all swords** (vanilla + modded) using **any iron ingot** (vanilla + modded).
+
+### Common Tags Reference
+
+When creating verifier mappings or reforge recipes, these common convention tags are available:
+
+**Weapons & Tools:**
+- `c:swords` - All swords
+- `c:axes` - All axes  
+- `c:pickaxes` - All pickaxes
+- `c:shovels` - All shovels
+- `c:hoes` - All hoes
+- `c:tools` - All tools
+
+**Armor:**
+- `c:helmets` - All helmets
+- `c:chestplates` - All chestplates
+- `c:leggings` - All leggings
+- `c:boots` - All boots
+- `c:armor` - All armor pieces
+
+**Materials:**
+- `c:ingots/iron`, `c:ingots/gold`, `c:ingots/copper` - Metal ingots
+- `c:gems/diamond`, `c:gems/emerald` - Gems
+- `minecraft:planks`, `minecraft:logs` - Wood materials
+
+See [Fabric Convention Tags](https://github.com/FabricMC/fabric/tree/1.20.1/fabric-convention-tags-v1) for complete list.
+
+### Troubleshooting
+
+**Modded items not getting tiers?**
+- Check if the mod uses convention tags (most do)
+- Create a verifier mapping to extend existing verifiers to the mod's tags
+- Check logs for "Resource was not loaded" messages indicating invalid item IDs
+
+**Reforge not working with modded items?**
+- Use tag-based reforge recipes with `#` prefix
+- Verify the tag exists and contains your items
+- Check logs after `/reload` for "Expanded tag X to Y items" messages
+
+**Changes not taking effect?**
+- Run `/reload` command in-game to reload datapacks
+- Check for JSON syntax errors in your datapack files
+- Enable debug logging to see detailed information
 
 ### Credits
 - **Draylar1** for making **Tiered**, the original mod.
