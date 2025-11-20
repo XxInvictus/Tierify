@@ -290,24 +290,26 @@ To find available tags in your modpack:
 
 ### Tag Expansion in Items Field
 
-When tags are used in the `items` field, the system performs **expansion at data load time**:
+**As of v1.3.0+**, tags in the `items` field use **lazy evaluation** for maximum compatibility:
 
-1. **Parse Phase**: Reads `"#c:swords"` from JSON
-2. **Expansion Phase**: Iterates through all registered items
-3. **Matching Phase**: Checks if each item has the tag using `isIn(tag)`
-4. **Registration Phase**: Creates individual reforge entries for each matched item
+1. **Parse Phase**: Reads `"#c:swords"` from JSON and stores as a tag reference
+2. **Runtime Evaluation**: When checking if an item can be reforged, the tag is evaluated on-demand
+3. **Matching Phase**: Checks if the item has the tag using `isIn(tag)` at runtime
+4. **Dynamic Support**: Works with modded tags that may not be loaded yet during datapack loading
 
-Example log output:
+**Why this matters:**
+- ✅ **Modded tags work immediately** - No need for `/reload` after joining a world
+- ✅ **Load order independent** - Doesn't matter when modded tags are registered
+- ✅ **No "expanded to 0 items" issues** - Tags are checked when actually needed
+- ✅ **Backward compatible** - Legacy expansion system still runs for compatibility
+
+You may still see log messages like:
 ```
-[Tierify] Expanded tag c:swords to 12 items for reforge
+[Tierify] Loaded tag-based reforge items: spartanweaponry:clubs
+[Tierify] Tag spartanweaponry:clubs expanded to 0 items for legacy system in tiered:reforge_items/wooden_club.json. Tags will still work at runtime.
 ```
 
-This means the single `"#c:swords"` entry became 12 individual reforge entries (one per sword).
-
-**Important:** Tag expansion happens during world load/resource reload, not during gameplay. This means:
-- ✅ No performance impact during reforging
-- ✅ Changes require `/reload` command to take effect
-- ⚠️ Items added by mods after load won't be included until next reload
+This is **normal** - the warning only applies to the legacy backward compatibility system. The new lazy evaluation system will work correctly at runtime.
 
 ### Tag Resolution in Base Field
 
@@ -319,10 +321,11 @@ Tags in the `base` field work differently - they're resolved **at runtime** when
 
 ### Performance
 
-#### Items Field Tags
-- Expansion happens once during resource load
-- Zero runtime overhead - works exactly like direct item IDs afterward
-- May increase initial load time slightly with very large tag sets
+#### Items Field Tags (v1.3.0+ Lazy Evaluation)
+- Tags are stored as references, minimal memory overhead
+- Tag checks happen when items are placed in reforge interface
+- Minecraft's tag system provides efficient caching
+- Negligible performance impact compared to direct item checks
 
 #### Base Field Tags  
 - Tag checks are cached by Minecraft's tag system
@@ -415,12 +418,97 @@ Either iron ingots (any) OR copper ingot will work.
 3. Are items properly tagged? (Mods must register their items to tags)
 4. Is the `#` prefix included?
 
+### Error: "Non [a-z0-9_.-] character in namespace"?
+
+This error means the `#` prefix wasn't properly handled. **Common causes:**
+
+1. **Mixing tag and item syntax**: Ensure entries with `#` are treated as tags
+   ```json
+   // ✅ CORRECT
+   {"items": ["#spartanweaponry:longbows"], "base": ["#c:ingots/iron"]}
+   
+   // ❌ WRONG - missing # prefix
+   {"items": ["spartanweaponry:longbows"], "base": ["c:ingots/iron"]}
+   ```
+
+2. **JSON parsing error**: Check for proper quotes and commas
+   ```json
+   // ✅ CORRECT
+   "items": ["#c:swords", "#c:axes"]
+   
+   // ❌ WRONG - missing comma
+   "items": ["#c:swords" "#c:axes"]
+   ```
+
+3. **Invalid tag format**: Tags must use valid namespace:path format
+   ```json
+   // ✅ CORRECT
+   "#spartanweaponry:longbows"
+   "#c:swords"
+   
+   // ❌ WRONG - invalid characters or format
+   "##c:swords"
+   "#c::swords"
+   ```
+
+**Solution**: Check your JSON file for syntax errors and ensure all tag references start with exactly one `#` character.
+
+### Tag expanded to 0 items warning?
+
+**As of v1.3.0+**: This warning is **informational only** and doesn't affect functionality!
+
+The warning appears because the legacy backward compatibility system tries to expand tags at load time. However, the **new lazy evaluation system** will work correctly at runtime regardless of this warning.
+
+**What the warning looks like:**
+```
+[Tierify] Tag spartanweaponry:clubs expanded to 0 items for legacy system in tiered:reforge_items/wooden_club.json. Tags will still work at runtime.
+```
+
+**Why it appears:**
+- Modded tags may not be loaded when the legacy expansion runs
+- The new system stores tags as references and checks them when actually needed
+- The warning only applies to the backward compatibility layer
+
+**What to do:**
+1. **Ignore the warning** - Your tags will work correctly at runtime
+2. **Test in-game** - Place the modded item in the reforge interface to verify
+3. **Only investigate if reforge doesn't work in-game:**
+   - Verify the tag exists: `/tag list items <modid>`
+   - Check the mod actually creates that tag (look in the mod's data files)
+   - Try using direct item IDs if the tag genuinely doesn't exist
+
+**If reforge still doesn't work after testing:**
+
+1. **Verify the tag exists** (Most common issue)
+   - Use `/tag list items` to see all available tags
+   - Search for your tag: `/tag list items spartan` (partial match)
+   - If the tag doesn't exist, the mod may use different tag names
+
+2. **Check mod tags in data files**
+   - Check the mod's JAR file or source code
+   - Look in `data/<modid>/tags/items/` folders
+   - Some mods don't create tags for all their item categories
+
+3. **Use direct item IDs instead** (If tag doesn't exist)
+   ```json
+   {
+     "items": [
+       "spartanweaponry:dagger_iron",
+       "spartanweaponry:dagger_gold",
+       "spartanweaponry:dagger_diamond"
+     ],
+     "base": ["#c:ingots/iron"]
+   }
+   ```
+
 ### Items not being accepted?
 
 **Verify:**
 1. Tag syntax: `"#c:ingots/iron"` (with quotes and #)
 2. Tag namespace: Include namespace (e.g., `c:` or `minecraft:`)
 3. Tag actually contains items: Some tags may be empty without certain mods
+4. Check logs for "Expanded tag X to Y items" - if Y is 0, see "Tag expanded to 0 items?" above
+5. Try `/reload` command to reload datapacks and tags
 
 ## Examples in This Mod
 

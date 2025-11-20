@@ -252,8 +252,16 @@ See [Fabric Convention Tags](https://github.com/FabricMC/fabric/tree/1.20.1/fabr
 
 **Reforge not working with modded items?**
 - Use tag-based reforge recipes with `#` prefix
-- Verify the tag exists and contains your items
-- Check logs after `/reload` for "Expanded tag X to Y items" messages
+- Verify the tag exists using `/tag list items <modid>`
+- Check logs for "Expanded tag X to Y items" messages
+- If tag expands to 0 items, the tag likely doesn't exist or is empty
+
+**Tag expanded to 0 items warning?**
+- **In v1.3.0+**: This warning is informational for the legacy system only
+- Tags in the `items` field now use **lazy evaluation** - they're checked at runtime, not load time
+- Modded tags will work correctly even if the warning appears during load
+- The warning only appears for the backward compatibility system
+- **If reforge still doesn't work**: Verify the tag actually exists with `/tag list items <modid>`
 
 **Changes not taking effect?**
 - Run `/reload` command in-game to reload datapacks

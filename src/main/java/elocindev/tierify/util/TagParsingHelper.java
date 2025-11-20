@@ -50,6 +50,10 @@ public class TagParsingHelper {
      * @return The TagKey for items
      */
     public static TagKey<Item> createItemTagFromId(String tagId) {
+        // Validate that the tag ID doesn't contain #
+        if (tagId != null && tagId.startsWith("#")) {
+            throw new IllegalArgumentException("Tag ID should not contain # prefix. Use extractTagId() first. Got: " + tagId);
+        }
         return TagKey.of(RegistryKeys.ITEM, new Identifier(tagId));
     }
     
@@ -109,6 +113,10 @@ public class TagParsingHelper {
      * @return The Item, or null if it resolves to air
      */
     public static Item getValidItem(String identifier) {
+        // Validate that the identifier doesn't contain #
+        if (identifier != null && identifier.startsWith("#")) {
+            throw new IllegalArgumentException("Item identifier should not contain # prefix. This is a tag reference, not an item ID: " + identifier);
+        }
         Item item = Registries.ITEM.get(new Identifier(identifier));
         return item.toString().equals("air") ? null : item;
     }

@@ -2,7 +2,7 @@ package elocindev.tierify.data;
 
 import com.google.common.collect.Maps;
 import com.google.gson.*;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.minecraft.resource.JsonDataLoader;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
@@ -11,6 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,11 +34,10 @@ import java.util.Map;
  *   ]
  * }
  */
-public class VerifierMappingLoader extends JsonDataLoader implements SimpleSynchronousResourceReloadListener {
+public class VerifierMappingLoader extends JsonDataLoader implements IdentifiableResourceReloadListener {
     
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final String PARSING_ERROR_MESSAGE = "Parsing error loading verifier mapping {}";
-    private static final String LOADED_MESSAGE = "Loaded {} verifier mappings";
     private static final Logger LOGGER = LogManager.getLogger();
     
     // Maps base verifier string (e.g., "c:swords") to its mapping definition
@@ -47,14 +48,41 @@ public class VerifierMappingLoader extends JsonDataLoader implements SimpleSynch
     }
     
     @Override
+    public Collection<Identifier> getFabricDependencies() {
+        // Depend on tags being loaded first
+        return Collections.singletonList(new Identifier("minecraft", "tags"));
+    }
+    
+    @Override
     protected void apply(Map<Identifier, JsonElement> loader, ResourceManager manager, Profiler profiler) {
         Map<String, VerifierMapping> readMappings = Maps.newHashMap();
+        
+        int filesProcessed = 0;
+        int filesSkipped = 0;
+        int totalMappedVerifiers = 0;
         
         for (Map.Entry<Identifier, JsonElement> entry : loader.entrySet()) {
             Identifier identifier = entry.getKey();
             
             try {
                 JsonObject json = entry.getValue().getAsJsonObject();
+                
+                // Validate required fields exist
+                if (!json.has("base_verifier") || json.get("base_verifier").isJsonNull()) {
+                    LOGGER.error("Verifier mapping {} is missing required 'base_verifier' field", identifier);
+                    filesSkipped++;
+                    continue;
+                }
+                if (!json.has("base_verifier_type") || json.get("base_verifier_type").isJsonNull()) {
+                    LOGGER.error("Verifier mapping {} is missing required 'base_verifier_type' field", identifier);
+                    filesSkipped++;
+                    continue;
+                }
+                if (!json.has("mapped_verifiers") || !json.get("mapped_verifiers").isJsonArray()) {
+                    LOGGER.error("Verifier mapping {} is missing required 'mapped_verifiers' array field", identifier);
+                    filesSkipped++;
+                    continue;
+                }
                 
                 // Parse base verifier
                 String baseVerifier = json.get("base_verifier").getAsString();
@@ -66,10 +94,27 @@ public class VerifierMappingLoader extends JsonDataLoader implements SimpleSynch
                 
                 for (JsonElement element : mappedArray) {
                     JsonObject mappedObj = element.getAsJsonObject();
+                    
+                    // Validate mapped verifier fields
+                    if (!mappedObj.has("verifier") || mappedObj.get("verifier").isJsonNull()) {
+                        LOGGER.debug("Verifier mapping {} has mapped_verifier entry missing 'verifier' field, skipping", identifier);
+                        continue;
+                    }
+                    if (!mappedObj.has("type") || mappedObj.get("type").isJsonNull()) {
+                        LOGGER.debug("Verifier mapping {} has mapped_verifier entry missing 'type' field, skipping", identifier);
+                        continue;
+                    }
+                    
                     String verifier = mappedObj.get("verifier").getAsString();
                     String type = mappedObj.get("type").getAsString();
                     
                     mappedVerifiers.add(new VerifierMapping.MappedVerifier(verifier, type));
+                }
+                
+                if (mappedVerifiers.isEmpty()) {
+                    LOGGER.warn("Verifier mapping {} has no valid mapped verifiers after processing, skipping", identifier);
+                    filesSkipped++;
+                    continue;
                 }
                 
                 VerifierMapping mapping = new VerifierMapping(baseVerifier, baseVerifierType, mappedVerifiers);
@@ -81,20 +126,27 @@ public class VerifierMappingLoader extends JsonDataLoader implements SimpleSynch
                     List<VerifierMapping.MappedVerifier> combined = new ArrayList<>(existing.getMappedVerifiers());
                     combined.addAll(mappedVerifiers);
                     mapping = new VerifierMapping(baseVerifier, baseVerifierType, combined);
+                    LOGGER.debug("Merged verifier mapping for {}: {} total mapped verifiers", baseVerifier, combined.size());
+                } else {
+                    LOGGER.debug("Loaded verifier mapping: {} -> {} mapped verifiers", baseVerifier, mappedVerifiers.size());
                 }
                 
                 readMappings.put(baseVerifier, mapping);
-                
-                LOGGER.info("Loaded verifier mapping: {} -> {} mapped verifiers", 
-                    baseVerifier, mappedVerifiers.size());
+                filesProcessed++;
+                totalMappedVerifiers += mappedVerifiers.size();
                 
             } catch (IllegalArgumentException | JsonParseException exception) {
                 LOGGER.error(PARSING_ERROR_MESSAGE, identifier, exception);
+                filesSkipped++;
+            } catch (Exception exception) {
+                LOGGER.error("Unexpected error loading verifier mapping {}: {}", identifier, exception.getMessage());
+                filesSkipped++;
             }
         }
         
         verifierMappings = readMappings;
-        LOGGER.info(LOADED_MESSAGE, readMappings.size());
+        LOGGER.info("Loaded {} verifier mappings ({} skipped) with {} total mapped verifiers", 
+            filesProcessed, filesSkipped, totalMappedVerifiers);
     }
     
     /**
@@ -118,9 +170,5 @@ public class VerifierMappingLoader extends JsonDataLoader implements SimpleSynch
     @Override
     public Identifier getFabricId() {
         return new Identifier("tiered", "verifier_mappings");
-    }
-    
-    @Override
-    public void reload(ResourceManager resourceManager) {
     }
 }

@@ -83,22 +83,36 @@ public class ReforgeScreenHandler extends ScreenHandler {
             Item item = this.getSlot(1).getStack().getItem();
             if (ModifierUtils.getRandomAttributeIDFor(null, item, false) != null && !this.getSlot(1).getStack().isDamaged()) {
 
-                ReforgeDataLoader.ReforgeBaseData baseData = Tierify.REFORGE_DATA_LOADER.getReforgeBaseData(item);
+                // Try new lazy-loading system first
+                ReforgeDataLoader.ReforgeDefinition definition = Tierify.REFORGE_DATA_LOADER.getReforgeDefinitionFor(item);
                 ItemStack baseItem = this.getSlot(0).getStack();
                 
-                // Check if custom reforge base data is defined
-                if (!baseData.getDirectItems().isEmpty() || !baseData.getTags().isEmpty()) {
+                if (definition != null) {
+                    // Use the new system with runtime tag expansion
+                    ReforgeDataLoader.ReforgeBaseData baseData = definition.getBaseData();
+                    
                     // Check direct item matches
                     boolean matchesDirectItem = baseData.getDirectItems().stream().anyMatch(it -> it == baseItem.getItem());
                     // Check tag matches
                     boolean matchesTag = baseData.getTags().stream().anyMatch(tag -> baseItem.isIn(tag));
                     this.reforgeReady = matchesDirectItem || matchesTag;
-                } else if (item instanceof ToolItem toolItem) {
-                    this.reforgeReady = toolItem.getMaterial().getRepairIngredient().test(baseItem);
-                } else if (item instanceof ArmorItem armorItem && armorItem.getMaterial().getRepairIngredient() != null) {
-                    this.reforgeReady = armorItem.getMaterial().getRepairIngredient().test(baseItem);
                 } else {
-                    this.reforgeReady = baseItem.isIn(TieredItemTags.REFORGE_BASE_ITEM);
+                    // Fall back to legacy system
+                    ReforgeDataLoader.ReforgeBaseData baseData = Tierify.REFORGE_DATA_LOADER.getReforgeBaseData(item);
+                    
+                    if (!baseData.getDirectItems().isEmpty() || !baseData.getTags().isEmpty()) {
+                        // Check direct item matches
+                        boolean matchesDirectItem = baseData.getDirectItems().stream().anyMatch(it -> it == baseItem.getItem());
+                        // Check tag matches
+                        boolean matchesTag = baseData.getTags().stream().anyMatch(tag -> baseItem.isIn(tag));
+                        this.reforgeReady = matchesDirectItem || matchesTag;
+                    } else if (item instanceof ToolItem toolItem) {
+                        this.reforgeReady = toolItem.getMaterial().getRepairIngredient().test(baseItem);
+                    } else if (item instanceof ArmorItem armorItem && armorItem.getMaterial().getRepairIngredient() != null) {
+                        this.reforgeReady = armorItem.getMaterial().getRepairIngredient().test(baseItem);
+                    } else {
+                        this.reforgeReady = baseItem.isIn(TieredItemTags.REFORGE_BASE_ITEM);
+                    }
                 }
             } else {
                 this.reforgeReady = false;
@@ -149,28 +163,43 @@ public class ReforgeScreenHandler extends ScreenHandler {
                 if (this.getSlot(1).hasStack()) {
                     Item item = this.getSlot(1).getStack().getItem();
                     
-                    // Check custom reforge base data (includes both direct items and tags)
-                    ReforgeDataLoader.ReforgeBaseData baseData = Tierify.REFORGE_DATA_LOADER.getReforgeBaseData(item);
-                    boolean matchesDirectItem = baseData.getDirectItems().stream().anyMatch(it -> it == itemStack2.copy().getItem());
-                    final ItemStack checkStack = itemStack2.copy();
-                    boolean matchesTag = baseData.getTags().stream().anyMatch(tag -> checkStack.isIn(tag));
+                    // Try new lazy-loading system first
+                    ReforgeDataLoader.ReforgeDefinition definition = Tierify.REFORGE_DATA_LOADER.getReforgeDefinitionFor(item);
                     
-                    if ((matchesDirectItem || matchesTag) && !this.insertItem(itemStack2, 0, 1, false)) {
-                        return ItemStack.EMPTY;
-                    }
-                    
-                    // Fallback to tool/armor material repair ingredients
-                    if (item instanceof ToolItem toolItem && toolItem.getMaterial().getRepairIngredient().test(itemStack) && !this.insertItem(itemStack2, 0, 1, false)) {
-                        return ItemStack.EMPTY;
-                    }
-                    if (item instanceof ArmorItem armorItem && armorItem.getMaterial().getRepairIngredient() != null && armorItem.getMaterial().getRepairIngredient().test(itemStack)
-                            && !this.insertItem(itemStack2, 0, 1, false)) {
-                        return ItemStack.EMPTY;
-                    }
-                    
-                    // Fallback to generic reforge base item tag
-                    if (itemStack.isIn(TieredItemTags.REFORGE_BASE_ITEM) && !this.insertItem(itemStack2, 0, 1, false)) {
-                        return ItemStack.EMPTY;
+                    if (definition != null) {
+                        // Use the new system with runtime tag expansion
+                        ReforgeDataLoader.ReforgeBaseData baseData = definition.getBaseData();
+                        boolean matchesDirectItem = baseData.getDirectItems().stream().anyMatch(it -> it == itemStack2.copy().getItem());
+                        final ItemStack checkStack = itemStack2.copy();
+                        boolean matchesTag = baseData.getTags().stream().anyMatch(tag -> checkStack.isIn(tag));
+                        
+                        if ((matchesDirectItem || matchesTag) && !this.insertItem(itemStack2, 0, 1, false)) {
+                            return ItemStack.EMPTY;
+                        }
+                    } else {
+                        // Fall back to legacy system
+                        ReforgeDataLoader.ReforgeBaseData baseData = Tierify.REFORGE_DATA_LOADER.getReforgeBaseData(item);
+                        boolean matchesDirectItem = baseData.getDirectItems().stream().anyMatch(it -> it == itemStack2.copy().getItem());
+                        final ItemStack checkStack = itemStack2.copy();
+                        boolean matchesTag = baseData.getTags().stream().anyMatch(tag -> checkStack.isIn(tag));
+                        
+                        if ((matchesDirectItem || matchesTag) && !this.insertItem(itemStack2, 0, 1, false)) {
+                            return ItemStack.EMPTY;
+                        }
+                        
+                        // Fallback to tool/armor material repair ingredients
+                        if (item instanceof ToolItem toolItem && toolItem.getMaterial().getRepairIngredient().test(itemStack) && !this.insertItem(itemStack2, 0, 1, false)) {
+                            return ItemStack.EMPTY;
+                        }
+                        if (item instanceof ArmorItem armorItem && armorItem.getMaterial().getRepairIngredient() != null && armorItem.getMaterial().getRepairIngredient().test(itemStack)
+                                && !this.insertItem(itemStack2, 0, 1, false)) {
+                            return ItemStack.EMPTY;
+                        }
+                        
+                        // Fallback to generic reforge base item tag
+                        if (itemStack.isIn(TieredItemTags.REFORGE_BASE_ITEM) && !this.insertItem(itemStack2, 0, 1, false)) {
+                            return ItemStack.EMPTY;
+                        }
                     }
                 }
                 if (ModifierUtils.getRandomAttributeIDFor(null, itemStack.getItem(), false) != null && !this.insertItem(itemStack2, 1, 2, false)) {
